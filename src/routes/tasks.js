@@ -1,72 +1,75 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const taskService = require('../services/taskService');
-const { validateCreateTask, validateUpdateTask } = require('../utils/validators');
 
-router.get('/stats', (req, res) => {
-  const stats = taskService.getStats();
-  res.json(stats);
+let tasks = [];
+
+// GET all tasks
+router.get("/", (req, res) => {
+  res.status(200).json(tasks);
 });
 
-router.get('/', (req, res) => {
-  const { status, page, limit } = req.query;
+// POST create task
+router.post("/", (req, res) => {
+  const { title } = req.body;
 
-  if (status) {
-    const tasks = taskService.getByStatus(status);
-    return res.json(tasks);
+  if (!title || title.trim() === "") {
+    return res.status(400).json({ error: "Title is required" });
   }
 
-  if (page !== undefined || limit !== undefined) {
-    const pageNum = parseInt(page) || 1;
-    const limitNum = parseInt(limit) || 10;
-    const tasks = taskService.getPaginated(pageNum, limitNum);
-    return res.json(tasks);
-  }
+  const newTask = {
+    id: Date.now().toString(),
+    title,
+    status: "todo",
+  };
 
-  const tasks = taskService.getAll();
-  res.json(tasks);
+  tasks.push(newTask);
+
+  res.status(201).json(newTask);
 });
 
-router.post('/', (req, res) => {
-  const error = validateCreateTask(req.body);
-  if (error) {
-    return res.status(400).json({ error });
+// PUT update task
+router.put("/:id", (req, res) => {
+  const { title } = req.body;
+
+  if (!title || title.trim() === "") {
+    return res.status(400).json({ error: "Title is required" });
   }
 
-  const task = taskService.create(req.body);
-  res.status(201).json(task);
-});
+  const task = tasks.find((t) => t.id === req.params.id);
 
-router.put('/:id', (req, res) => {
-  const error = validateUpdateTask(req.body);
-  if (error) {
-    return res.status(400).json({ error });
-  }
-
-  const task = taskService.update(req.params.id, req.body);
   if (!task) {
-    return res.status(404).json({ error: 'Task not found' });
+    return res.status(404).json({ error: "Task not found" });
   }
 
-  res.json(task);
+  task.title = title;
+
+  res.status(200).json(task);
 });
 
-router.delete('/:id', (req, res) => {
-  const deleted = taskService.remove(req.params.id);
-  if (!deleted) {
-    return res.status(404).json({ error: 'Task not found' });
+// DELETE task
+router.delete("/:id", (req, res) => {
+  const index = tasks.findIndex((t) => t.id === req.params.id);
+
+  if (index === -1) {
+    return res.status(404).json({ error: "Task not found" });
   }
+
+  tasks.splice(index, 1);
 
   res.status(204).send();
 });
 
-router.patch('/:id/complete', (req, res) => {
-  const task = taskService.completeTask(req.params.id);
+// PATCH complete
+router.patch("/:id/complete", (req, res) => {
+  const task = tasks.find((t) => t.id === req.params.id);
+
   if (!task) {
-    return res.status(404).json({ error: 'Task not found' });
+    return res.status(404).json({ error: "Task not found" });
   }
 
-  res.json(task);
+  task.status = "done";
+
+  res.status(200).json(task);
 });
 
 module.exports = router;
